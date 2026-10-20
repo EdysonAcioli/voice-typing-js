@@ -1,6 +1,8 @@
-# Binários do modelo (155 MB — baixar via download_assets.ps1)
+# Binários do modelo (155 MB — baixar via scripts\download-model.ps1)
 sherpa-wasm/*.data
 sherpa-wasm/*.wasm
+sherpa-wasm/*.onnx
+sherpa-wasm/tokens.txt
 
 # Experimentos antigos (Whisper offline, transformers.js)
 models/

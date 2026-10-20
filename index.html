@@ -3,134 +3,210 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Digitação por voz 100% offline no navegador — reconhecimento de fala streaming em WebAssembly, sem nuvem."
+    />
     <title>Digitação por Voz — 100% offline</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>" />
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      :root {
+        --bg: #0f1117;
+        --panel: #161a23;
+        --panel-2: #1c212d;
+        --border: #2a3040;
+        --text: #e8eaf0;
+        --muted: #7c8698;
+        --accent: #6ee7ff;
+        --accent-2: #a78bfa;
+        --ok: #4ade80;
+        --err: #f87171;
+        --rec: #fb7185;
       }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
-        font-family: "Segoe UI", system-ui, sans-serif;
-        background: #1a1a2e;
-        color: #e0e0e0;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 70% -10%, rgba(110, 231, 255, 0.07), transparent 60%),
+          radial-gradient(900px 500px at 10% 110%, rgba(167, 139, 250, 0.06), transparent 60%),
+          var(--bg);
+        color: var(--text);
         min-height: 100vh;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 2rem 1rem;
+        padding: 2.5rem 1rem 3rem;
       }
+
+      /* ── header ── */
+      header { text-align: center; margin-bottom: 2rem; }
       h1 {
-        font-size: 1.4rem;
-        font-weight: 600;
-        margin-bottom: 0.4rem;
-        color: #8be9fd;
+        font-size: 1.7rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
-      #subtitle {
-        font-size: 0.8rem;
-        color: #6272a4;
-        margin-bottom: 1.2rem;
+      #subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+      .badges {
+        display: flex; gap: 0.5rem; justify-content: center;
+        margin-top: 0.9rem; flex-wrap: wrap;
       }
+      .badge {
+        font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em;
+        padding: 0.28rem 0.7rem; border-radius: 999px;
+        border: 1px solid var(--border); background: var(--panel);
+        color: var(--muted);
+      }
+      .badge b { color: var(--text); font-weight: 600; }
+
+      /* ── status ── */
       #status {
-        font-size: 0.85rem;
-        margin-bottom: 1rem;
-        color: #6272a4;
-        min-height: 1.2em;
-        text-align: center;
+        font-size: 0.82rem; color: var(--muted);
+        min-height: 1.3em; margin-bottom: 1.4rem; text-align: center;
       }
-      #status.listening {
-        color: #50fa7b;
-      }
-      #status.error {
-        color: #ff5555;
-      }
+      #status.listening { color: var(--ok); }
+      #status.error { color: var(--err); }
+
+      /* ── mic ── */
+      #mic-wrap { position: relative; margin-bottom: 1.8rem; }
       #mic-btn {
-        width: 88px;
-        height: 88px;
-        border-radius: 50%;
-        border: none;
-        cursor: pointer;
-        background: #44475a;
-        font-size: 2.4rem;
-        transition: all 0.2s ease;
+        width: 92px; height: 92px; border-radius: 50%;
+        border: 1px solid var(--border);
+        cursor: pointer; background: var(--panel-2);
+        font-size: 2.5rem; line-height: 1;
+        transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
         outline: none;
-        margin-bottom: 1.5rem;
+        display: grid; place-items: center;
       }
-      #mic-btn:hover {
-        background: #6272a4;
-        transform: scale(1.05);
+      #mic-btn:hover:not(:disabled) {
+        background: var(--border); transform: scale(1.06);
+        border-color: var(--accent);
       }
-      #mic-btn:disabled {
-        opacity: 0.4;
-        cursor: wait;
-      }
+      #mic-btn:disabled { opacity: 0.35; cursor: wait; }
       #mic-btn.on {
-        background: #ff5555;
+        background: linear-gradient(135deg, #fb7185, #f43f5e);
+        border-color: transparent;
         animation: pulse 1.4s infinite;
       }
       @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(255, 85, 85, 0.5);
-        }
-        70% {
-          box-shadow: 0 0 0 22px rgba(255, 85, 85, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(255, 85, 85, 0);
-        }
+        0%   { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.45); }
+        70%  { box-shadow: 0 0 0 24px rgba(251, 113, 133, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0); }
       }
+      /* medidor de nível de voz */
+      #level-ring {
+        position: absolute; inset: -7px; border-radius: 50%;
+        pointer-events: none;
+        background: conic-gradient(var(--accent) calc(var(--lvl, 0) * 1%), var(--border) 0);
+        mask: radial-gradient(closest-side, transparent 78%, #000 79%);
+        -webkit-mask: radial-gradient(closest-side, transparent 78%, #000 79%);
+        opacity: 0; transition: opacity 0.2s;
+      }
+      #mic-wrap.listening #level-ring { opacity: 1; }
+
+      /* ── editor ── */
+      #editor {
+        width: 100%; max-width: 760px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.1rem 1.2rem 0.9rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      }
+      #editor-label {
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em;
+        text-transform: uppercase; color: var(--muted);
+        margin-bottom: 0.6rem;
+      }
+      #stats { font-weight: 500; text-transform: none; letter-spacing: 0; }
       #transcript {
-        width: 100%;
-        max-width: 720px;
-        min-height: 240px;
-        background: #282a36;
-        border: 1px solid #44475a;
-        border-radius: 10px;
-        padding: 1.2rem;
-        font-size: 1.05rem;
-        line-height: 1.6;
-        resize: vertical;
-        color: #f8f8f2;
-        font-family: inherit;
+        width: 100%; min-height: 220px;
+        background: transparent; border: none; outline: none; resize: vertical;
+        color: var(--text); font-family: inherit;
+        font-size: 1.08rem; line-height: 1.65;
       }
-      #transcript:focus {
-        border-color: #8be9fd;
-        outline: none;
-      }
+      #transcript::placeholder { color: #4b5468; }
       #interim {
-        width: 100%;
-        max-width: 720px;
-        margin-top: 0.6rem;
-        font-size: 0.95rem;
-        color: #6272a4;
-        font-style: italic;
-        min-height: 1.4em;
+        font-size: 0.98rem; color: var(--accent);
+        font-style: italic; min-height: 1.5em; margin-top: 0.4rem;
+        border-top: 1px dashed var(--border); padding-top: 0.5rem;
       }
+      #editor-actions {
+        display: flex; gap: 0.5rem; margin-top: 0.8rem;
+        padding-top: 0.7rem; border-top: 1px solid var(--border);
+      }
+      .action-btn {
+        font-size: 0.75rem; font-weight: 600;
+        padding: 0.42rem 0.9rem; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--panel-2);
+        color: var(--muted); cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .action-btn:hover { color: var(--text); border-color: var(--accent); }
+      .action-btn.primary { color: var(--accent); border-color: var(--accent); }
+
+      /* ── footer ── */
       #hint {
-        margin-top: 1.5rem;
-        font-size: 0.75rem;
-        color: #44475a;
-        text-align: center;
+        margin-top: 1.8rem; font-size: 0.72rem; color: #4b5468;
+        text-align: center; line-height: 1.7;
       }
+      #hint kbd {
+        font-family: inherit; font-size: 0.68rem;
+        background: var(--panel-2); border: 1px solid var(--border);
+        border-bottom-width: 2px; border-radius: 5px;
+        padding: 0.1rem 0.45rem; color: var(--muted);
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
     </style>
   </head>
   <body>
-    <h1>🎙️ Digitação por Voz</h1>
-    <div id="subtitle">
-      Reconhecimento de voz local no navegador — streaming em tempo real, sem
-      internet
-    </div>
+    <header>
+      <h1>🎙️ Digitação por Voz</h1>
+      <div id="subtitle">
+        Reconhecimento de voz local no navegador — streaming em tempo real, sem internet
+      </div>
+      <div class="badges">
+        <span class="badge"><b>100%</b> offline</span>
+        <span class="badge">Zipformer <b>pt</b> streaming</span>
+        <span class="badge">WASM + <b>Web Worker</b></span>
+        <span class="badge">1ª parcial <b>~1,7s</b></span>
+      </div>
+    </header>
+
     <div id="status">Carregando modelo local (~150 MB, uma vez só)...</div>
-    <button id="mic-btn" title="Iniciar/Parar" disabled>🎤</button>
-    <textarea
-      id="transcript"
-      placeholder="A transcrição aparece aqui... (Ctrl+Espaço alterna)"
-      spellcheck="false"
-    ></textarea>
-    <div id="interim"></div>
+
+    <div id="mic-wrap">
+      <div id="level-ring"></div>
+      <button id="mic-btn" title="Iniciar/Parar (Ctrl+Espaço)" disabled>🎤</button>
+    </div>
+
+    <div id="editor">
+      <div id="editor-label">
+        <span>Transcrição</span>
+        <span id="stats"></span>
+      </div>
+      <textarea
+        id="transcript"
+        placeholder="A transcrição aparece aqui... (Ctrl+Espaço alterna)"
+        spellcheck="false"
+      ></textarea>
+      <div id="interim"></div>
+      <div id="editor-actions">
+        <button class="action-btn primary" id="copy-btn" title="Copiar transcrição">📋 Copiar</button>
+        <button class="action-btn" id="clear-btn" title="Limpar transcrição">✕ Limpar</button>
+      </div>
+    </div>
+
     <div id="hint">
-      Reconhecimento 100% offline • Zipformer streaming pt (Kõrkõ) • parciais em
-      tempo real
+      <kbd>Ctrl</kbd> + <kbd>Espaço</kbd> alterna escuta &nbsp;•&nbsp; pausas na fala confirmam o texto automaticamente<br />
+      Reconhecimento 100% offline • modelo
+      <a href="https://huggingface.co/kouhxp/sherpa-onnx-streaming-zipformer-pt-kroko" target="_blank" rel="noopener">Zipformer pt (Kroko)</a>
+      via <a href="https://github.com/k2-fsa/sherpa-onnx" target="_blank" rel="noopener">sherpa-onnx</a>
     </div>
 
     <script src="app.js"></script>

@@ -5,8 +5,13 @@ class VoiceCaptureProcessor extends AudioWorkletProcessor {
   process(inputs) {
     const input = inputs[0];
     if (input && input[0] && input[0].length) {
+      const samples = input[0];
+      // nível RMS do chunk para o medidor de voz
+      let sum = 0;
+      for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+      const level = Math.sqrt(sum / samples.length);
       // copia: o buffer do worklet é reutilizado pelo sistema de áudio
-      this.port.postMessage(input[0].slice(0));
+      this.port.postMessage({ samples: samples.slice(0), level });
     }
     return true;
   }

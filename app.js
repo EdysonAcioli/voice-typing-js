@@ -13,6 +13,9 @@ const btn = document.getElementById("mic-btn");
 const statusEl = document.getElementById("status");
 const transcriptEl = document.getElementById("transcript");
 const interimEl = document.getElementById("interim");
+const micWrap = document.getElementById("mic-wrap");
+const levelRing = document.getElementById("level-ring");
+const statsEl = document.getElementById("stats");
 
 function setStatus(text, cls) {
   statusEl.textContent = text;
@@ -91,7 +94,7 @@ async function startListening() {
   });
   workletNode.port.onmessage = (ev) => {
     if (!listening) return;
-    onAudioChunk(ev.data);
+    onAudioChunk(ev.data.samples, ev.data.level);
   };
   sourceNode.connect(workletNode);
   // saída conectada ao destination apenas para o worklet rodar;
@@ -100,17 +103,43 @@ async function startListening() {
 
   await postTask("createStream");
   listening = true;
+  chunkCount = 0;
+  listenStart = performance.now();
+  micWrap.classList.add("listening");
   btn.classList.add("on");
-  btn.title = "Parar";
+  btn.title = "Parar (Ctrl+Espaço)";
   setStatus("Ouvindo... fale livremente", "listening");
 }
 
 // ─── Loop streaming: feed → decode no worker → parcial → endpoint ───
 let committedText = "";
 let lastPartial = "";
+let chunkCount = 0;
+let listenStart = 0;
 
-function onAudioChunk(samples) {
+function updateStats() {
+  const words = (committedText.trim() ? committedText.trim().split(/\s+/).length : 0);
+  const secs = listening ? ((performance.now() - listenStart) / 1000).toFixed(0) : 0;
+  statsEl.textContent = listening
+    ? `${words} palavra${words === 1 ? "" : "s"} • ${secs}s`
+    : words
+      ? `${words} palavra${words === 1 ? "" : "s"}`
+      : "";
+}
+
+function onAudioChunk(samples, level) {
   if (!listening) return;
+  chunkCount++;
+
+  // medidor de nível de voz (0–100%)
+  if (level !== undefined) {
+    const pct = Math.min(100, Math.round((level / 0.25) * 100));
+    levelRing.style.setProperty("--lvl", pct);
+  }
+
+  // stats a cada ~0.5s (64 chunks de 8ms)
+  if (chunkCount % 64 === 0) updateStats();
+
   // transfere o buffer sem cópia (zero-copy) para o worker
   postTask("acceptWaveform", { sampleRate: TARGET_SR, samples }, [samples.buffer])
     .then((res) => {
@@ -137,7 +166,10 @@ function onAudioChunk(samples) {
 function stopListening() {
   listening = false;
   btn.classList.remove("on");
-  btn.title = "Iniciar";
+  micWrap.classList.remove("listening");
+  levelRing.style.setProperty("--lvl", 0);
+  btn.title = "Iniciar (Ctrl+Espaço)";
+  updateStats();
 
   // commit final do que ficou pendente
   postTask("flush")
@@ -182,4 +214,28 @@ document.addEventListener("keydown", (ev) => {
     ev.preventDefault();
     if (!btn.disabled) btn.click();
   }
+});
+
+// ─── Ações do editor ───
+document.getElementById("copy-btn").addEventListener("click", async (ev) => {
+  const text = transcriptEl.value;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const b = ev.currentTarget;
+    const orig = b.textContent;
+    b.textContent = "✓ Copiado";
+    setTimeout(() => (b.textContent = orig), 1200);
+  } catch (e) {
+    transcriptEl.select();
+    document.execCommand("copy");
+  }
+});
+
+document.getElementById("clear-btn").addEventListener("click", () => {
+  transcriptEl.value = "";
+  committedText = "";
+  lastPartial = "";
+  interimEl.textContent = "";
+  updateStats();
 });
