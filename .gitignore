@@ -1,0 +1,16 @@
+# Binários do modelo (155 MB — baixar via download_assets.ps1)
+sherpa-wasm/*.data
+sherpa-wasm/*.wasm
+
+# Experimentos antigos (Whisper offline, transformers.js)
+models/
+vendor/
+ort-wasm/
+index-webspeech-v1.html
+
+# Áudio de teste (regenerável via gen_test_wav.ps1)
+test-audio.wav
+
+# Temporários
+__pycache__/
+*.pyc

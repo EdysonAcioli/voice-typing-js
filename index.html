@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digitação por Voz — 100% offline</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #1a1a2e;
+        color: #e0e0e0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 1rem;
+      }
+      h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+        color: #8be9fd;
+      }
+      #subtitle {
+        font-size: 0.8rem;
+        color: #6272a4;
+        margin-bottom: 1.2rem;
+      }
+      #status {
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        color: #6272a4;
+        min-height: 1.2em;
+        text-align: center;
+      }
+      #status.listening {
+        color: #50fa7b;
+      }
+      #status.error {
+        color: #ff5555;
+      }
+      #mic-btn {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        background: #44475a;
+        font-size: 2.4rem;
+        transition: all 0.2s ease;
+        outline: none;
+        margin-bottom: 1.5rem;
+      }
+      #mic-btn:hover {
+        background: #6272a4;
+        transform: scale(1.05);
+      }
+      #mic-btn:disabled {
+        opacity: 0.4;
+        cursor: wait;
+      }
+      #mic-btn.on {
+        background: #ff5555;
+        animation: pulse 1.4s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(255, 85, 85, 0.5);
+        }
+        70% {
+          box-shadow: 0 0 0 22px rgba(255, 85, 85, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 85, 85, 0);
+        }
+      }
+      #transcript {
+        width: 100%;
+        max-width: 720px;
+        min-height: 240px;
+        background: #282a36;
+        border: 1px solid #44475a;
+        border-radius: 10px;
+        padding: 1.2rem;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        resize: vertical;
+        color: #f8f8f2;
+        font-family: inherit;
+      }
+      #transcript:focus {
+        border-color: #8be9fd;
+        outline: none;
+      }
+      #interim {
+        width: 100%;
+        max-width: 720px;
+        margin-top: 0.6rem;
+        font-size: 0.95rem;
+        color: #6272a4;
+        font-style: italic;
+        min-height: 1.4em;
+      }
+      #hint {
+        margin-top: 1.5rem;
+        font-size: 0.75rem;
+        color: #44475a;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎙️ Digitação por Voz</h1>
+    <div id="subtitle">
+      Reconhecimento de voz local no navegador — streaming em tempo real, sem
+      internet
+    </div>
+    <div id="status">Carregando modelo local (~150 MB, uma vez só)...</div>
+    <button id="mic-btn" title="Iniciar/Parar" disabled>🎤</button>
+    <textarea
+      id="transcript"
+      placeholder="A transcrição aparece aqui... (Ctrl+Espaço alterna)"
+      spellcheck="false"
+    ></textarea>
+    <div id="interim"></div>
+    <div id="hint">
+      Reconhecimento 100% offline • Zipformer streaming pt (Kõrkõ) • parciais em
+      tempo real
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
